@@ -1,18 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { accionesLegales, aplicar, crearPartida, vistaDeJugador } from '../motor'
 import type { Jugador } from '../motor'
+import { rngConSemilla } from '../pruebas/rngConSemilla'
 import { decidir } from './ia'
-
-/** Generador pseudoaleatorio determinista (mulberry32). */
-function rngConSemilla(semilla: number) {
-  let a = semilla
-  return () => {
-    a = (a + 0x6d2b79f5) | 0
-    let t = Math.imul(a ^ (a >>> 15), 1 | a)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
 
 describe('IA aleatoria', () => {
   it('en una ronda IA contra IA siempre elige una carta legal y la ronda termina con un ganador', () => {

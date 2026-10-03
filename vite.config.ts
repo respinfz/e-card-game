@@ -6,6 +6,6 @@ export default defineConfig({
   base: '/e-card-game/',
   plugins: [react()],
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
   },
 })

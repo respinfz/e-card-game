@@ -481,3 +481,10 @@ describe('desempate', () => {
     expect(vistaDeJugador(continuar(estado), 'J1').fase).toBe('finPartida')
   })
 })
+
+describe('multiplicador', () => {
+  it('la vista de jugador muestra el multiplicador elegido al crear la partida', () => {
+    expect(vistaDeJugador(crearPartida({ multiplicador: 4 }, rngFijo), 'J1').multiplicador).toBe(4)
+    expect(vistaDeJugador(crearPartida({ multiplicador: 5 }, rngFijo), 'J2').multiplicador).toBe(5)
+  })
+})

@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
 import { aplicar, crearPartida, vistaDeJugador } from './motor'
-import type { Bando, Carta, Estado, Jugador, Motivo, Rng, VistaDeJugador } from './motor'
+import type { Bando, Carta, Configuracion, Estado, Jugador, Motivo, Multiplicador, Rng, VistaDeJugador } from './motor'
 import { decidir } from './ia/ia'
 
 const HUMANO: Jugador = 'J1'
 const IA: Jugador = 'J2'
-const CONFIGURACION = { multiplicador: 4 } as const
 
 /** Cuánto se ven dos Ciudadanos revelados antes de pasar al siguiente enfrentamiento. */
 export const PAUSA_EMPATE_MS = 1500
@@ -30,15 +29,51 @@ function eleccionDeLaIA(estado: Estado, rng: Rng): Estado {
 }
 
 export function App({ rng = Math.random }: { rng?: Rng }) {
-  const [estado, setEstado] = useState(() => crearPartida(CONFIGURACION, rng))
-  const vista = vistaDeJugador(estado, HUMANO)
+  const [estado, setEstado] = useState<Estado | null>(null)
 
-  function jugarDeNuevo() {
-    setEstado(crearPartida(CONFIGURACION, rng))
+  if (estado === null) {
+    return <PantallaConfiguracion onEmpezar={(configuracion) => setEstado(crearPartida(configuracion, rng))} />
   }
+  const vista = vistaDeJugador(estado, HUMANO)
+  if (vista.fase === 'finPartida') return <PantallaFinal vista={vista} onJugarDeNuevo={() => setEstado(null)} />
+  return (
+    <Mesa
+      key={vista.ronda}
+      estado={estado}
+      setEstado={(actualizar) => setEstado((actual) => actualizar(actual!))}
+      rng={rng}
+    />
+  )
+}
 
-  if (vista.fase === 'finPartida') return <PantallaFinal vista={vista} onJugarDeNuevo={jugarDeNuevo} />
-  return <Mesa key={vista.ronda} estado={estado} setEstado={setEstado} rng={rng} />
+const MODOS: { multiplicador: Multiplicador; nombre: string }[] = [
+  { multiplicador: 4, nombre: 'modo justo' },
+  { multiplicador: 5, nombre: 'modo manga' },
+]
+
+function PantallaConfiguracion({ onEmpezar }: { onEmpezar: (configuracion: Configuracion) => void }) {
+  const [multiplicador, setMultiplicador] = useState<Multiplicador>(4)
+  return (
+    <main className="pantalla-configuracion">
+      <h1>E-Card</h1>
+      <p>Una partida de 12 rondas contra la IA. Cada jugador empieza con 30 fichas.</p>
+      <fieldset>
+        <legend>Multiplicador: lo que paga el jugador Emperador si gana la carta Esclavo</legend>
+        {MODOS.map((modo) => (
+          <label key={modo.multiplicador}>
+            <input
+              type="radio"
+              name="multiplicador"
+              checked={multiplicador === modo.multiplicador}
+              onChange={() => setMultiplicador(modo.multiplicador)}
+            />
+            ×{modo.multiplicador} ({modo.nombre})
+          </label>
+        ))}
+      </fieldset>
+      <button onClick={() => onEmpezar({ multiplicador })}>Empezar partida</button>
+    </main>
+  )
 }
 
 function Mesa({
@@ -97,6 +132,13 @@ function Mesa({
   return (
     <main className="mesa">
       <header className="marcador" aria-label="Marcador">
+        {vista.ronda === 1 && (
+          <p className="sorteo">
+            Sorteo: {vista.jugadorA === HUMANO ? 'eres el jugador A y empiezas' : 'el rival es el jugador A y empieza'} de
+            Emperador.
+          </p>
+        )}
+        <p className="multiplicador">Multiplicador ×{vista.multiplicador}</p>
         {vista.esDesempate && (
           <p className="desempate">
             <strong>Desempate</strong> · apuesta fija de 5 fichas
@@ -145,7 +187,7 @@ function Mesa({
                 />
               </label>
               <p>
-                Si ganas: +{cantidad * CONFIGURACION.multiplicador} · Si pierdes: −{cantidad}
+                Si ganas: +{cantidad * vista.multiplicador} · Si pierdes: −{cantidad}
               </p>
               <button onClick={apostar}>Apostar</button>
             </div>

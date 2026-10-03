@@ -211,6 +211,7 @@ export function vistaDeJugador(estado: Estado, jugador: Jugador): VistaDeJugador
     ronda: estado.ronda,
     bloque: bloqueDe(estado.ronda),
     esDesempate: esDesempate(estado.ronda),
+    multiplicador: estado.configuracion.multiplicador,
     fase: estado.fase,
     misFichas: estado.fichas[jugador],
     fichasRival: estado.fichas[rival],
