@@ -1,12 +1,12 @@
 import type { Rng } from '../motor'
+import { siguienteAleatorio } from '../motor/aleatorio'
 
-/** Generador pseudoaleatorio determinista (mulberry32), para los tests. */
+/** Rng determinista para los tests, con el mismo generador que usa el motor. */
 export function rngConSemilla(semilla: number): Rng {
-  let a = semilla
+  let actual = semilla
   return () => {
-    a = (a + 0x6d2b79f5) | 0
-    let t = Math.imul(a ^ (a >>> 15), 1 | a)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    const [valor, siguiente] = siguienteAleatorio(actual)
+    actual = siguiente
+    return valor
   }
 }

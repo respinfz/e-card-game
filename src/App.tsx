@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { aplicar, crearPartida, vistaDeJugador } from './motor'
 import type { Bando, Carta, Configuracion, Estado, Jugador, Motivo, Multiplicador, Rng, VistaDeJugador } from './motor'
@@ -40,8 +40,8 @@ function accionDeLaIA(estado: Estado, rng: Rng): Estado {
   return accion ? aplicar(estado, accion) : estado
 }
 
-/** Identifica el momento en que la IA tiene que actuar, o null si no le toca. */
-function turnoDeLaIA(vista: VistaDeJugador): string | null {
+/** Identifica el momento (ronda, fase y enfrentamiento) en que la IA tiene que actuar, o null si no le toca. */
+function momentoDeActuarDeLaIA(vista: VistaDeJugador): string | null {
   const leToca = vista.apuestaMaxima !== null || (vista.fase === 'enfrentamientos' && vista.miEleccion === null)
   return leToca ? `${vista.ronda}-${vista.fase}-${vista.enfrentamientos.length}` : null
 }
@@ -120,13 +120,13 @@ function Mesa({
   }, [enPausa, reveladas])
 
   // Cuando le toca, la IA piensa un rato y actúa, sin ver la elección del humano.
-  const turnoIA = turnoDeLaIA(vistaDeJugador(estado, IA))
+  const momentoIA = momentoDeActuarDeLaIA(vistaDeJugador(estado, IA))
   useEffect(() => {
-    if (enPausa || turnoIA === null) return
+    if (enPausa || momentoIA === null) return
     const espera = IA_PIENSA_MIN_MS + rng() * (IA_PIENSA_MAX_MS - IA_PIENSA_MIN_MS)
     const temporizador = setTimeout(() => setEstado((actual) => accionDeLaIA(actual, rng)), espera)
     return () => clearTimeout(temporizador)
-  }, [turnoIA, enPausa, rng, setEstado])
+  }, [momentoIA, enPausa, rng, setEstado])
 
   function confirmar() {
     if (seleccion === null) return
@@ -306,7 +306,7 @@ function Mesa({
 }
 
 /**
- * Cuenta atrás del tiempo límite. Se monta al empezar cada enfrentamiento y
+ * Reloj del tiempo límite. Se monta al empezar cada enfrentamiento y
  * no avanza mientras la página está oculta (pestaña o aplicación en segundo plano).
  */
 function Reloj({ onAgotado }: { onAgotado: () => void }) {
@@ -320,9 +320,14 @@ function Reloj({ onAgotado }: { onAgotado: () => void }) {
     return () => clearInterval(intervalo)
   }, [])
 
+  // Se guarda la última versión del callback para dispararlo una sola vez al llegar a 0.
+  const alAgotarse = useRef(onAgotado)
   useEffect(() => {
-    if (restante === 0) onAgotado()
-  }, [restante, onAgotado])
+    alAgotarse.current = onAgotado
+  })
+  useEffect(() => {
+    if (restante === 0) alAgotarse.current()
+  }, [restante])
 
   const fraccion = restante / TIEMPO_LIMITE_MS
   return (

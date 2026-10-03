@@ -488,7 +488,8 @@ button:focus-visible {
   }
 
   .fila-jugador .carta + .carta {
-    margin-left: -12px;
+    /* 5 cartas de 72 px con solape de 16 px ocupan 296 px: caben en un móvil de 360 px. */
+    margin-left: -16px;
   }
 
   .fila-jugador {

@@ -37,8 +37,8 @@ function bloqueDe(ronda: number): number {
   return bloquesNormales + Math.ceil((ronda - RONDAS_DE_LA_PARTIDA) / RONDAS_POR_DESEMPATE)
 }
 
-/** Si la ronda cierra la partida normal o un desempate: ahí se mira quién tiene más fichas. */
-function cierraUnTramo(ronda: number): boolean {
+/** Si es la última ronda de la partida normal o de un desempate: ahí se mira quién tiene más fichas. */
+function esUltimaRondaDeBloqueFinal(ronda: number): boolean {
   return ronda === RONDAS_DE_LA_PARTIDA || (esDesempate(ronda) && rondaDelDesempate(ronda) === RONDAS_POR_DESEMPATE)
 }
 
@@ -143,7 +143,7 @@ function pagar(estado: Estado, ganador: Jugador): Estado {
   let resultado: Resultado | null = null
   if (pago < debe) resultado = { ganador, motivo: 'pagoNoCubierto' }
   else if (fichas[perdedor] === 0) resultado = { ganador, motivo: 'sinFichas' }
-  else if (cierraUnTramo(estado.ronda) && fichas.J1 !== fichas.J2) {
+  else if (esUltimaRondaDeBloqueFinal(estado.ronda) && fichas.J1 !== fichas.J2) {
     resultado = { ganador: fichas.J1 > fichas.J2 ? 'J1' : 'J2', motivo: 'finDeRondas' }
   }
   const ronda: RondaJugada = {
@@ -221,9 +221,16 @@ export function accionesLegales(estado: Estado, jugador: Jugador): Accion[] {
 function esLegal(estado: Estado, accion: Accion): boolean {
   if (accion.tipo === 'ContinuarRonda') return estado.fase === 'resultadoRonda'
   if (accion.tipo === 'JugarCartaAlAzar') return puedeElegirCarta(estado, accion.jugador)
-  return accionesLegales(estado, accion.jugador).some(
-    (legal) => JSON.stringify(legal) === JSON.stringify(accion),
-  )
+  if (accion.tipo === 'Apostar') {
+    const { cantidad } = accion
+    return (
+      leTocaApostar(estado, accion.jugador) &&
+      Number.isInteger(cantidad) &&
+      cantidad >= 1 &&
+      cantidad <= apuestaMaxima(estado)
+    )
+  }
+  return puedeElegirCarta(estado, accion.jugador) && estado.manos[accion.jugador].includes(accion.carta)
 }
 
 /** Aplica la acción y devuelve el nuevo estado. Una acción ilegal devuelve el mismo estado. */

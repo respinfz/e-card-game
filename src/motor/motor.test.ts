@@ -234,6 +234,17 @@ describe('límites de apuesta', () => {
     expect(aplicar(estado, { tipo: 'Apostar', jugador: 'J1', cantidad: 5 })).toBe(estado)
   })
 
+  it('el jugador Emperador no tiene tope: la apuesta vale aunque no pueda cubrir apuesta × multiplicador', () => {
+    // El jugador A (J1) pierde dos rondas como Emperador pagando 3 × 4 = 12 cada vez: le quedan 6.
+    let estado = nuevaPartida()
+    for (let i = 0; i < 2; i++) estado = continuar(jugarRonda(estado, 'Esclavo', 3))
+    expect(vistaDeJugador(estado, 'J1').bando).toBe('Emperador')
+    expect(vistaDeJugador(estado, 'J1').misFichas).toBe(6)
+
+    const conApuesta = aplicar(estado, { tipo: 'Apostar', jugador: 'J2', cantidad: 10 })
+    expect(vistaDeJugador(conApuesta, 'J1').apuesta).toBe(10)
+  })
+
   it('rechaza una segunda apuesta cuando ya empezaron los enfrentamientos', () => {
     const estado = nuevaRonda(3)
 
