@@ -17,14 +17,37 @@ function rivalDe(jugador: Jugador): Jugador {
 
 const RONDAS_POR_BLOQUE = 3
 const RONDAS_DE_LA_PARTIDA = 12
+const RONDAS_POR_DESEMPATE = 2
+const APUESTA_DESEMPATE = 5
 
-function bloqueDe(ronda: number): number {
-  return Math.ceil(ronda / RONDAS_POR_BLOQUE)
+function esDesempate(ronda: number): boolean {
+  return ronda > RONDAS_DE_LA_PARTIDA
 }
 
-/** El jugador A es Emperador en los bloques impares y Esclavo en los pares. */
+/** Posición de la ronda dentro de su desempate: 1 o 2. */
+function rondaDelDesempate(ronda: number): number {
+  return ((ronda - RONDAS_DE_LA_PARTIDA - 1) % RONDAS_POR_DESEMPATE) + 1
+}
+
+function bloqueDe(ronda: number): number {
+  if (!esDesempate(ronda)) return Math.ceil(ronda / RONDAS_POR_BLOQUE)
+  const bloquesNormales = RONDAS_DE_LA_PARTIDA / RONDAS_POR_BLOQUE
+  return bloquesNormales + Math.ceil((ronda - RONDAS_DE_LA_PARTIDA) / RONDAS_POR_DESEMPATE)
+}
+
+/** Si la ronda cierra la partida normal o un desempate: ahí se mira quién tiene más fichas. */
+function cierraUnTramo(ronda: number): boolean {
+  return ronda === RONDAS_DE_LA_PARTIDA || (esDesempate(ronda) && rondaDelDesempate(ronda) === RONDAS_POR_DESEMPATE)
+}
+
+/**
+ * El jugador A es Emperador en los bloques impares de la partida normal
+ * y en la primera ronda de cada desempate.
+ */
 function bandoDe(estado: Estado, jugador: Jugador): Bando {
-  const aEsEmperador = bloqueDe(estado.ronda) % 2 === 1
+  const aEsEmperador = esDesempate(estado.ronda)
+    ? rondaDelDesempate(estado.ronda) === 1
+    : bloqueDe(estado.ronda) % 2 === 1
   return (jugador === estado.jugadorA) === aEsEmperador ? 'Emperador' : 'Esclavo'
 }
 
@@ -45,13 +68,17 @@ function quitarUna(mano: Carta[], carta: Carta): Carta[] {
 
 const FICHAS_INICIALES = 30
 
-/** Empieza la ronda indicada: reparte las manos según los bandos y espera la apuesta. */
+/**
+ * Empieza la ronda indicada: reparte las manos según los bandos y espera la apuesta.
+ * En el desempate la apuesta es fija y se pasa directamente a los enfrentamientos.
+ */
 function empezarRonda(estado: Estado, ronda: number): Estado {
   const conRonda = { ...estado, ronda }
+  const desempate = esDesempate(ronda)
   return {
     ...conRonda,
-    fase: 'apuesta',
-    apuesta: null,
+    fase: desempate ? 'enfrentamientos' : 'apuesta',
+    apuesta: desempate ? APUESTA_DESEMPATE : null,
     manos: {
       J1: repartirMano(bandoDe(conRonda, 'J1')),
       J2: repartirMano(bandoDe(conRonda, 'J2')),
@@ -112,7 +139,7 @@ function pagar(estado: Estado, ganador: Jugador): Estado {
   let resultado: Resultado | null = null
   if (pago < debe) resultado = { ganador, motivo: 'pagoNoCubierto' }
   else if (fichas[perdedor] === 0) resultado = { ganador, motivo: 'sinFichas' }
-  else if (estado.ronda === RONDAS_DE_LA_PARTIDA && fichas.J1 !== fichas.J2) {
+  else if (cierraUnTramo(estado.ronda) && fichas.J1 !== fichas.J2) {
     resultado = { ganador: fichas.J1 > fichas.J2 ? 'J1' : 'J2', motivo: 'finDeRondas' }
   }
   return { ...estado, fichas, pago, resultado }
@@ -183,6 +210,7 @@ export function vistaDeJugador(estado: Estado, jugador: Jugador): VistaDeJugador
     bando: bandoDe(estado, jugador),
     ronda: estado.ronda,
     bloque: bloqueDe(estado.ronda),
+    esDesempate: esDesempate(estado.ronda),
     fase: estado.fase,
     misFichas: estado.fichas[jugador],
     fichasRival: estado.fichas[rival],

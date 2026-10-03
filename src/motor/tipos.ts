@@ -61,6 +61,7 @@ export interface VistaDeJugador {
   bando: Bando
   ronda: number
   bloque: number
+  esDesempate: boolean
   fase: Fase
   misFichas: number
   fichasRival: number

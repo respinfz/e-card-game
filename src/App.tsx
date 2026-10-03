@@ -90,13 +90,21 @@ function Mesa({
   }
 
   const puedeElegir = vista.fase === 'enfrentamientos' && vista.miEleccion === null && !enPausa
-  const cambioDeBando = vista.ronda > 1 && vista.fase === 'apuesta' && (vista.ronda - 1) % 3 === 0
+  // En la partida normal se cambia de bando al empezar cada bloque; en el desempate, en cada ronda.
+  const empiezaBloque = vista.esDesempate || (vista.ronda - 1) % 3 === 0
+  const cambioDeBando = vista.ronda > 1 && empiezaBloque && reveladas === 0 && vista.fase !== 'resultadoRonda'
 
   return (
     <main className="mesa">
       <header className="marcador" aria-label="Marcador">
+        {vista.esDesempate && (
+          <p className="desempate">
+            <strong>Desempate</strong> · apuesta fija de 5 fichas
+          </p>
+        )}
         <p>
-          Ronda {vista.ronda} de 12 · Bloque {vista.bloque} · Eres el jugador <strong>{vista.bando}</strong>
+          {vista.esDesempate ? `Ronda ${vista.ronda}` : `Ronda ${vista.ronda} de 12`} · Bloque {vista.bloque} · Eres
+          el jugador <strong>{vista.bando}</strong>
         </p>
         {cambioDeBando && (
           <p className="aviso" role="alert">

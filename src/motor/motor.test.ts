@@ -410,3 +410,74 @@ describe('fin de partida', () => {
     expect(accionesLegales(final, 'J2')).toEqual([])
   })
 })
+
+describe('desempate', () => {
+  /** 12 rondas en las que siempre gana el jugador Emperador apostando 1: termina 30 a 30. */
+  function partidaEmpatada(): Estado {
+    let estado = jugarRonda(nuevaPartida(), 'Emperador')
+    for (let ronda = 2; ronda <= 12; ronda++) estado = jugarRonda(continuar(estado), 'Emperador')
+    return estado
+  }
+
+  it('el empate tras la ronda 12 inicia un desempate en lugar de terminar la partida', () => {
+    const empatada = partidaEmpatada()
+    expect(vistaDeJugador(empatada, 'J1').misFichas).toBe(30)
+    expect(vistaDeJugador(empatada, 'J1').resultado).toBeNull()
+
+    const vista = vistaDeJugador(continuar(empatada), 'J1')
+    expect(vista.ronda).toBe(13)
+    expect(vista.esDesempate).toBe(true)
+  })
+
+  it('en el desempate la apuesta es 5, la fase de apuesta se salta y Apostar se rechaza', () => {
+    const desempate = continuar(partidaEmpatada())
+
+    const vista = vistaDeJugador(desempate, 'J2')
+    expect(vista.fase).toBe('enfrentamientos')
+    expect(vista.apuesta).toBe(5)
+    expect(vista.apuestaMaxima).toBeNull()
+    expect(aplicar(desempate, { tipo: 'Apostar', jugador: 'J2', cantidad: 3 })).toBe(desempate)
+  })
+
+  it('el jugador A es Emperador en la primera ronda de cada desempate y el bando cambia en la segunda', () => {
+    const primera = continuar(partidaEmpatada())
+    expect(vistaDeJugador(primera, 'J1').bando).toBe('Emperador')
+
+    const segunda = continuar(jugarRonda(primera, 'Emperador'))
+    expect(vistaDeJugador(segunda, 'J1').ronda).toBe(14)
+    expect(vistaDeJugador(segunda, 'J1').bando).toBe('Esclavo')
+    expect(vistaDeJugador(segunda, 'J1').esDesempate).toBe(true)
+  })
+
+  it('las rondas normales no son desempate', () => {
+    expect(vistaDeJugador(nuevaPartida(), 'J1').esDesempate).toBe(false)
+  })
+
+  it('un desempate que termina empatado inicia otro', () => {
+    // Cada jugador gana su ronda de Emperador cobrando 5: vuelve a quedar 30 a 30.
+    let estado = jugarRonda(continuar(partidaEmpatada()), 'Emperador')
+    expect(vistaDeJugador(estado, 'J1').resultado).toBeNull()
+    estado = jugarRonda(continuar(estado), 'Emperador')
+    expect(vistaDeJugador(estado, 'J1').misFichas).toBe(30)
+    expect(vistaDeJugador(estado, 'J1').resultado).toBeNull()
+
+    const otro = vistaDeJugador(continuar(estado), 'J1')
+    expect(otro.ronda).toBe(15)
+    expect(otro.esDesempate).toBe(true)
+    expect(otro.bando).toBe('Emperador')
+    expect(otro.apuesta).toBe(5)
+  })
+
+  it('un desempate que no termina empatado acaba la partida con ganador', () => {
+    // Ronda 13: gana el jugador Esclavo (J2 cobra 5 × 4). Ronda 14: J2, ahora Emperador, cobra 5.
+    let estado = jugarRonda(continuar(partidaEmpatada()), 'Esclavo')
+    expect(vistaDeJugador(estado, 'J1').resultado).toBeNull()
+    estado = jugarRonda(continuar(estado), 'Emperador')
+
+    const vista = vistaDeJugador(estado, 'J1')
+    expect(vista.misFichas).toBe(5)
+    expect(vista.fichasRival).toBe(55)
+    expect(vista.resultado).toEqual({ ganador: 'J2', motivo: 'finDeRondas' })
+    expect(vistaDeJugador(continuar(estado), 'J1').fase).toBe('finPartida')
+  })
+})
