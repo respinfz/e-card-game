@@ -29,6 +29,8 @@ export interface Resultado {
 export interface Estado {
   configuracion: Configuracion
   jugadorA: Jugador
+  /** Semilla del generador interno para la carta al azar; sale del rng inyectado en crearPartida. */
+  semilla: number
   /** Número de ronda, desde 1. */
   ronda: number
   fase: Fase
@@ -47,6 +49,7 @@ export interface Estado {
 export type Accion =
   | { tipo: 'Apostar'; jugador: Jugador; cantidad: number }
   | { tipo: 'ElegirCarta'; jugador: Jugador; carta: Carta }
+  | { tipo: 'JugarCartaAlAzar'; jugador: Jugador }
   | { tipo: 'ContinuarRonda' }
 
 export interface EnfrentamientoVisto {

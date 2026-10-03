@@ -9,6 +9,10 @@ const IA: Jugador = 'J2'
 /** Cuánto se ven dos Ciudadanos revelados antes de pasar al siguiente enfrentamiento. */
 export const PAUSA_EMPATE_MS = 1500
 
+/** Tiempo límite para elegir carta en cada enfrentamiento. */
+const TIEMPO_LIMITE_MS = 20_000
+const TIC_MS = 100
+
 const BANDO_CONTRARIO: Record<Bando, Bando> = { Emperador: 'Esclavo', Esclavo: 'Emperador' }
 
 const ETIQUETA: Record<Carta, string> = {
@@ -112,6 +116,11 @@ function Mesa({
     if (seleccion === null) return
     const carta = vista.mano[seleccion]
     setEstado((actual) => aplicar(actual, { tipo: 'ElegirCarta', jugador: HUMANO, carta }))
+    setSeleccion(null)
+  }
+
+  function jugarCartaAlAzar() {
+    setEstado((actual) => aplicar(actual, { tipo: 'JugarCartaAlAzar', jugador: HUMANO }))
     setSeleccion(null)
   }
 
@@ -228,11 +237,38 @@ function Mesa({
             </button>
           ))}
         </div>
+        {puedeElegir && <Reloj key={reveladas} onAgotado={jugarCartaAlAzar} />}
         <button className="confirmar" disabled={seleccion === null || !puedeElegir} onClick={confirmar}>
           Confirmar
         </button>
       </section>
     </main>
+  )
+}
+
+/**
+ * Cuenta atrás del tiempo límite. Se monta al empezar cada enfrentamiento y
+ * no avanza mientras la página está oculta (pestaña o aplicación en segundo plano).
+ */
+function Reloj({ onAgotado }: { onAgotado: () => void }) {
+  const [restante, setRestante] = useState(TIEMPO_LIMITE_MS)
+
+  useEffect(() => {
+    const intervalo = setInterval(() => {
+      if (document.visibilityState === 'hidden') return
+      setRestante((actual) => Math.max(0, actual - TIC_MS))
+    }, TIC_MS)
+    return () => clearInterval(intervalo)
+  }, [])
+
+  useEffect(() => {
+    if (restante === 0) onAgotado()
+  }, [restante, onAgotado])
+
+  return (
+    <p className="reloj" role="timer" aria-label="Tiempo límite">
+      {Math.ceil(restante / 1000)} s
+    </p>
   )
 }
 

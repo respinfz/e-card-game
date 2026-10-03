@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { accionesLegales, aplicar, crearPartida, vistaDeJugador } from './index'
 import type { Bando, Carta, Estado, Jugador } from './index'
+import { rngConSemilla } from '../pruebas/rngConSemilla'
 
 const rngFijo = () => 0
 
@@ -154,9 +155,10 @@ describe('acciones legales', () => {
       expect.arrayContaining([
         { tipo: 'ElegirCarta', jugador: 'J2', carta: 'Esclavo' },
         { tipo: 'ElegirCarta', jugador: 'J2', carta: 'Ciudadano' },
+        { tipo: 'JugarCartaAlAzar', jugador: 'J2' },
       ]),
     )
-    expect(accionesLegales(estado, 'J2')).toHaveLength(2)
+    expect(accionesLegales(estado, 'J2')).toHaveLength(3)
 
     const trasElegir = aplicar(estado, { tipo: 'ElegirCarta', jugador: 'J2', carta: 'Ciudadano' })
     expect(accionesLegales(trasElegir, 'J2')).toEqual([])
@@ -486,5 +488,44 @@ describe('multiplicador', () => {
   it('la vista de jugador muestra el multiplicador elegido al crear la partida', () => {
     expect(vistaDeJugador(crearPartida({ multiplicador: 4 }, rngFijo), 'J1').multiplicador).toBe(4)
     expect(vistaDeJugador(crearPartida({ multiplicador: 5 }, rngFijo), 'J2').multiplicador).toBe(5)
+  })
+})
+
+describe('carta al azar', () => {
+  function cartaAlAzarDeJ1(semilla: number): Carta | null {
+    const partida = crearPartida({ multiplicador: 4 }, rngConSemilla(semilla))
+    const esclavo = jugadorCon(partida, 'Esclavo')
+    const enJuego = aplicar(partida, { tipo: 'Apostar', jugador: esclavo, cantidad: 1 })
+    return vistaDeJugador(aplicar(enJuego, { tipo: 'JugarCartaAlAzar', jugador: 'J1' }), 'J1').miEleccion
+  }
+
+  it('JugarCartaAlAzar juega una carta de la mano del jugador', () => {
+    const estado = aplicar(nuevaRonda(), { tipo: 'JugarCartaAlAzar', jugador: 'J1' })
+
+    expect(['Emperador', 'Ciudadano']).toContain(vistaDeJugador(estado, 'J1').miEleccion)
+    expect(vistaDeJugador(estado, 'J2').rivalHaElegido).toBe(true)
+  })
+
+  it('la carta la determina el rng: la misma semilla da la misma carta y distintas semillas varían', () => {
+    const cartas = Array.from({ length: 40 }, (_, i) => cartaAlAzarDeJ1(i + 1))
+
+    expect(cartas).toEqual(Array.from({ length: 40 }, (_, i) => cartaAlAzarDeJ1(i + 1)))
+    expect(cartas).toContain('Ciudadano')
+    expect(cartas.some((carta) => carta === 'Emperador' || carta === 'Esclavo')).toBe(true)
+  })
+
+  it('se rechaza si el jugador ya eligió o si no se están jugando enfrentamientos', () => {
+    const yaEligio = aplicar(nuevaRonda(), { tipo: 'ElegirCarta', jugador: 'J1', carta: 'Ciudadano' })
+    const enApuesta = nuevaPartida()
+
+    expect(aplicar(yaEligio, { tipo: 'JugarCartaAlAzar', jugador: 'J1' })).toBe(yaEligio)
+    expect(aplicar(enApuesta, { tipo: 'JugarCartaAlAzar', jugador: 'J1' })).toBe(enApuesta)
+  })
+
+  it('completa el enfrentamiento si el rival ya había elegido', () => {
+    const rivalEligio = aplicar(nuevaRonda(), { tipo: 'ElegirCarta', jugador: 'J2', carta: 'Ciudadano' })
+
+    const estado = aplicar(rivalEligio, { tipo: 'JugarCartaAlAzar', jugador: 'J1' })
+    expect(vistaDeJugador(estado, 'J1').enfrentamientos).toHaveLength(1)
   })
 })

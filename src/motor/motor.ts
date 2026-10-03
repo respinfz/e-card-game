@@ -10,6 +10,7 @@ import type {
   Rng,
   VistaDeJugador,
 } from './tipos'
+import { siguienteAleatorio } from './aleatorio'
 
 function rivalDe(jugador: Jugador): Jugador {
   return jugador === 'J1' ? 'J2' : 'J1'
@@ -95,6 +96,7 @@ export function crearPartida(configuracion: Configuracion, rng: Rng): Estado {
   const vacio: Estado = {
     configuracion,
     jugadorA,
+    semilla: Math.floor(rng() * 2 ** 32),
     ronda: 1,
     fase: 'apuesta',
     fichas: { J1: FICHAS_INICIALES, J2: FICHAS_INICIALES },
@@ -172,19 +174,42 @@ function leTocaApostar(estado: Estado, jugador: Jugador): boolean {
   return estado.fase === 'apuesta' && jugador === jugadorEsclavo(estado)
 }
 
+function puedeElegirCarta(estado: Estado, jugador: Jugador): boolean {
+  return estado.fase === 'enfrentamientos' && estado.elecciones[jugador] === undefined
+}
+
+/** Elige con el generador interno una carta de la mano del jugador y avanza la semilla. */
+function cartaAlAzar(estado: Estado, jugador: Jugador): [Carta, Estado] {
+  const [valor, semilla] = siguienteAleatorio(estado.semilla)
+  const mano = estado.manos[jugador]
+  return [mano[Math.floor(valor * mano.length)], { ...estado, semilla }]
+}
+
+function elegirCarta(estado: Estado, jugador: Jugador, carta: Carta): Estado {
+  const elecciones = { ...estado.elecciones, [jugador]: carta }
+  if (elecciones.J1 !== undefined && elecciones.J2 !== undefined) {
+    return revelar(estado, { J1: elecciones.J1, J2: elecciones.J2 })
+  }
+  return { ...estado, elecciones }
+}
+
 export function accionesLegales(estado: Estado, jugador: Jugador): Accion[] {
   if (estado.fase === 'resultadoRonda') return [{ tipo: 'ContinuarRonda' }]
   if (estado.fase === 'apuesta') {
     if (!leTocaApostar(estado, jugador)) return []
     return Array.from({ length: apuestaMaxima(estado) }, (_, i) => ({ tipo: 'Apostar', jugador, cantidad: i + 1 }))
   }
-  if (estado.fase !== 'enfrentamientos' || estado.elecciones[jugador] !== undefined) return []
+  if (!puedeElegirCarta(estado, jugador)) return []
   const cartasDistintas = [...new Set(estado.manos[jugador])]
-  return cartasDistintas.map((carta) => ({ tipo: 'ElegirCarta', jugador, carta }))
+  return [
+    ...cartasDistintas.map((carta): Accion => ({ tipo: 'ElegirCarta', jugador, carta })),
+    { tipo: 'JugarCartaAlAzar', jugador },
+  ]
 }
 
 function esLegal(estado: Estado, accion: Accion): boolean {
   if (accion.tipo === 'ContinuarRonda') return estado.fase === 'resultadoRonda'
+  if (accion.tipo === 'JugarCartaAlAzar') return puedeElegirCarta(estado, accion.jugador)
   return accionesLegales(estado, accion.jugador).some(
     (legal) => JSON.stringify(legal) === JSON.stringify(accion),
   )
@@ -195,11 +220,11 @@ export function aplicar(estado: Estado, accion: Accion): Estado {
   if (!esLegal(estado, accion)) return estado
   if (accion.tipo === 'ContinuarRonda') return continuarRonda(estado)
   if (accion.tipo === 'Apostar') return { ...estado, fase: 'enfrentamientos', apuesta: accion.cantidad }
-  const elecciones = { ...estado.elecciones, [accion.jugador]: accion.carta }
-  if (elecciones.J1 !== undefined && elecciones.J2 !== undefined) {
-    return revelar(estado, { J1: elecciones.J1, J2: elecciones.J2 })
+  if (accion.tipo === 'JugarCartaAlAzar') {
+    const [carta, conSemilla] = cartaAlAzar(estado, accion.jugador)
+    return elegirCarta(conSemilla, accion.jugador, carta)
   }
-  return { ...estado, elecciones }
+  return elegirCarta(estado, accion.jugador, accion.carta)
 }
 
 export function vistaDeJugador(estado: Estado, jugador: Jugador): VistaDeJugador {
