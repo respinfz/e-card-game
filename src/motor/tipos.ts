@@ -1,4 +1,5 @@
-export type Jugador = 'A' | 'B'
+/** Asiento en la mesa. Cuál de los dos es el jugador A lo decide el sorteo. */
+export type Jugador = 'J1' | 'J2'
 
 export type Bando = 'Emperador' | 'Esclavo'
 
@@ -13,7 +14,7 @@ export interface Configuracion {
 /** Devuelve un número en [0, 1), como Math.random. */
 export type Rng = () => number
 
-export type Fase = 'apuesta' | 'enfrentamientos' | 'resultadoRonda'
+export type Fase = 'apuesta' | 'enfrentamientos' | 'resultadoRonda' | 'finPartida'
 
 export type Enfrentamiento = Record<Jugador, Carta>
 
@@ -27,6 +28,9 @@ export interface Resultado {
 
 export interface Estado {
   configuracion: Configuracion
+  jugadorA: Jugador
+  /** Número de ronda, desde 1. */
+  ronda: number
   fase: Fase
   fichas: Record<Jugador, number>
   apuesta: number | null
@@ -43,6 +47,7 @@ export interface Estado {
 export type Accion =
   | { tipo: 'Apostar'; jugador: Jugador; cantidad: number }
   | { tipo: 'ElegirCarta'; jugador: Jugador; carta: Carta }
+  | { tipo: 'ContinuarRonda' }
 
 export interface EnfrentamientoVisto {
   mia: Carta
@@ -51,7 +56,11 @@ export interface EnfrentamientoVisto {
 
 export interface VistaDeJugador {
   jugador: Jugador
+  /** El asiento que ganó el sorteo: Emperador en el primer bloque y en la primera ronda de cada desempate. */
+  jugadorA: Jugador
   bando: Bando
+  ronda: number
+  bloque: number
   fase: Fase
   misFichas: number
   fichasRival: number

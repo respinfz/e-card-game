@@ -11,12 +11,25 @@ import type {
   VistaDeJugador,
 } from './tipos'
 
-function bandoDe(jugador: Jugador): Bando {
-  return jugador === 'A' ? 'Emperador' : 'Esclavo'
+function rivalDe(jugador: Jugador): Jugador {
+  return jugador === 'J1' ? 'J2' : 'J1'
 }
 
-function rivalDe(jugador: Jugador): Jugador {
-  return jugador === 'A' ? 'B' : 'A'
+const RONDAS_POR_BLOQUE = 3
+const RONDAS_DE_LA_PARTIDA = 12
+
+function bloqueDe(ronda: number): number {
+  return Math.ceil(ronda / RONDAS_POR_BLOQUE)
+}
+
+/** El jugador A es Emperador en los bloques impares y Esclavo en los pares. */
+function bandoDe(estado: Estado, jugador: Jugador): Bando {
+  const aEsEmperador = bloqueDe(estado.ronda) % 2 === 1
+  return (jugador === estado.jugadorA) === aEsEmperador ? 'Emperador' : 'Esclavo'
+}
+
+function jugadorEsclavo(estado: Estado): Jugador {
+  return bandoDe(estado, 'J1') === 'Esclavo' ? 'J1' : 'J2'
 }
 
 const CARTA_ESPECIAL: Record<Bando, Carta> = { Emperador: 'Emperador', Esclavo: 'Esclavo' }
@@ -32,19 +45,46 @@ function quitarUna(mano: Carta[], carta: Carta): Carta[] {
 
 const FICHAS_INICIALES = 30
 
-export function crearPartida(configuracion: Configuracion, _rng: Rng): Estado {
+/** Empieza la ronda indicada: reparte las manos según los bandos y espera la apuesta. */
+function empezarRonda(estado: Estado, ronda: number): Estado {
+  const conRonda = { ...estado, ronda }
   return {
-    configuracion,
+    ...conRonda,
     fase: 'apuesta',
-    fichas: { A: FICHAS_INICIALES, B: FICHAS_INICIALES },
     apuesta: null,
-    manos: { A: repartirMano(bandoDe('A')), B: repartirMano(bandoDe('B')) },
+    manos: {
+      J1: repartirMano(bandoDe(conRonda, 'J1')),
+      J2: repartirMano(bandoDe(conRonda, 'J2')),
+    },
+    elecciones: {},
+    enfrentamientos: [],
+    ganadorRonda: null,
+    pago: null,
+  }
+}
+
+export function crearPartida(configuracion: Configuracion, rng: Rng): Estado {
+  const jugadorA: Jugador = rng() < 0.5 ? 'J1' : 'J2'
+  const vacio: Estado = {
+    configuracion,
+    jugadorA,
+    ronda: 1,
+    fase: 'apuesta',
+    fichas: { J1: FICHAS_INICIALES, J2: FICHAS_INICIALES },
+    apuesta: null,
+    manos: { J1: [], J2: [] },
     elecciones: {},
     enfrentamientos: [],
     ganadorRonda: null,
     pago: null,
     resultado: null,
   }
+  return empezarRonda(vacio, 1)
+}
+
+function continuarRonda(estado: Estado): Estado {
+  if (estado.resultado !== null) return { ...estado, fase: 'finPartida' }
+  return empezarRonda(estado, estado.ronda + 1)
 }
 
 const VENCE_A: Record<Carta, Carta> = {
@@ -55,14 +95,14 @@ const VENCE_A: Record<Carta, Carta> = {
 
 /** Ganador del enfrentamiento, o null si son dos Ciudadanos y se descartan. */
 function ganadorDe(enfrentamiento: Enfrentamiento): Jugador | null {
-  if (VENCE_A[enfrentamiento.A] === enfrentamiento.B) return 'A'
-  if (VENCE_A[enfrentamiento.B] === enfrentamiento.A) return 'B'
+  if (VENCE_A[enfrentamiento.J1] === enfrentamiento.J2) return 'J1'
+  if (VENCE_A[enfrentamiento.J2] === enfrentamiento.J1) return 'J2'
   return null
 }
 
 function pagar(estado: Estado, ganador: Jugador): Estado {
   const perdedor = rivalDe(ganador)
-  const factor = bandoDe(ganador) === 'Esclavo' ? estado.configuracion.multiplicador : 1
+  const factor = bandoDe(estado, ganador) === 'Esclavo' ? estado.configuracion.multiplicador : 1
   const debe = estado.apuesta! * factor
   // Si el perdedor no puede cubrir el pago, entrega todo lo que tiene y pierde la partida.
   const pago = Math.min(debe, estado.fichas[perdedor])
@@ -72,6 +112,9 @@ function pagar(estado: Estado, ganador: Jugador): Estado {
   let resultado: Resultado | null = null
   if (pago < debe) resultado = { ganador, motivo: 'pagoNoCubierto' }
   else if (fichas[perdedor] === 0) resultado = { ganador, motivo: 'sinFichas' }
+  else if (estado.ronda === RONDAS_DE_LA_PARTIDA && fichas.J1 !== fichas.J2) {
+    resultado = { ganador: fichas.J1 > fichas.J2 ? 'J1' : 'J2', motivo: 'finDeRondas' }
+  }
   return { ...estado, fichas, pago, resultado }
 }
 
@@ -81,8 +124,8 @@ function revelar(estado: Estado, enfrentamiento: Enfrentamiento): Estado {
     ...estado,
     fase: ganador === null ? 'enfrentamientos' : 'resultadoRonda',
     manos: {
-      A: quitarUna(estado.manos.A, enfrentamiento.A),
-      B: quitarUna(estado.manos.B, enfrentamiento.B),
+      J1: quitarUna(estado.manos.J1, enfrentamiento.J1),
+      J2: quitarUna(estado.manos.J2, enfrentamiento.J2),
     },
     elecciones: {},
     enfrentamientos: [...estado.enfrentamientos, enfrentamiento],
@@ -95,15 +138,15 @@ const APUESTA_TOPE = 10
 
 /** El jugador Esclavo apuesta de 1 a 10, sin superar sus propias fichas. */
 function apuestaMaxima(estado: Estado): number {
-  const esclavo = bandoDe('A') === 'Esclavo' ? 'A' : 'B'
-  return Math.min(APUESTA_TOPE, estado.fichas[esclavo])
+  return Math.min(APUESTA_TOPE, estado.fichas[jugadorEsclavo(estado)])
 }
 
 function leTocaApostar(estado: Estado, jugador: Jugador): boolean {
-  return estado.fase === 'apuesta' && bandoDe(jugador) === 'Esclavo'
+  return estado.fase === 'apuesta' && jugador === jugadorEsclavo(estado)
 }
 
 export function accionesLegales(estado: Estado, jugador: Jugador): Accion[] {
+  if (estado.fase === 'resultadoRonda') return [{ tipo: 'ContinuarRonda' }]
   if (estado.fase === 'apuesta') {
     if (!leTocaApostar(estado, jugador)) return []
     return Array.from({ length: apuestaMaxima(estado) }, (_, i) => ({ tipo: 'Apostar', jugador, cantidad: i + 1 }))
@@ -114,6 +157,7 @@ export function accionesLegales(estado: Estado, jugador: Jugador): Accion[] {
 }
 
 function esLegal(estado: Estado, accion: Accion): boolean {
+  if (accion.tipo === 'ContinuarRonda') return estado.fase === 'resultadoRonda'
   return accionesLegales(estado, accion.jugador).some(
     (legal) => JSON.stringify(legal) === JSON.stringify(accion),
   )
@@ -122,10 +166,11 @@ function esLegal(estado: Estado, accion: Accion): boolean {
 /** Aplica la acción y devuelve el nuevo estado. Una acción ilegal devuelve el mismo estado. */
 export function aplicar(estado: Estado, accion: Accion): Estado {
   if (!esLegal(estado, accion)) return estado
+  if (accion.tipo === 'ContinuarRonda') return continuarRonda(estado)
   if (accion.tipo === 'Apostar') return { ...estado, fase: 'enfrentamientos', apuesta: accion.cantidad }
   const elecciones = { ...estado.elecciones, [accion.jugador]: accion.carta }
-  if (elecciones.A !== undefined && elecciones.B !== undefined) {
-    return revelar(estado, { A: elecciones.A, B: elecciones.B })
+  if (elecciones.J1 !== undefined && elecciones.J2 !== undefined) {
+    return revelar(estado, { J1: elecciones.J1, J2: elecciones.J2 })
   }
   return { ...estado, elecciones }
 }
@@ -134,7 +179,10 @@ export function vistaDeJugador(estado: Estado, jugador: Jugador): VistaDeJugador
   const rival = rivalDe(jugador)
   return {
     jugador,
-    bando: bandoDe(jugador),
+    jugadorA: estado.jugadorA,
+    bando: bandoDe(estado, jugador),
+    ronda: estado.ronda,
+    bloque: bloqueDe(estado.ronda),
     fase: estado.fase,
     misFichas: estado.fichas[jugador],
     fichasRival: estado.fichas[rival],

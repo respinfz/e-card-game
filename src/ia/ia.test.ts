@@ -19,32 +19,34 @@ describe('IA aleatoria', () => {
     for (let semilla = 1; semilla <= 50; semilla++) {
       const rng = rngConSemilla(semilla)
       let estado = crearPartida({ multiplicador: 4 }, rng)
-      const apuesta = decidir(vistaDeJugador(estado, 'B'), rng)
-      expect(accionesLegales(estado, 'B')).toContainEqual(apuesta)
-      expect(decidir(vistaDeJugador(estado, 'A'), rng)).toBeNull()
+      const esclavo: Jugador = vistaDeJugador(estado, 'J1').bando === 'Esclavo' ? 'J1' : 'J2'
+      const emperador: Jugador = esclavo === 'J1' ? 'J2' : 'J1'
+      const apuesta = decidir(vistaDeJugador(estado, esclavo), rng)
+      expect(accionesLegales(estado, esclavo)).toContainEqual(apuesta)
+      expect(decidir(vistaDeJugador(estado, emperador), rng)).toBeNull()
       estado = aplicar(estado, apuesta!)
 
-      for (let paso = 0; paso < 10 && vistaDeJugador(estado, 'A').fase === 'enfrentamientos'; paso++) {
-        for (const jugador of ['A', 'B'] as Jugador[]) {
+      for (let paso = 0; paso < 10 && vistaDeJugador(estado, 'J1').fase === 'enfrentamientos'; paso++) {
+        for (const jugador of ['J1', 'J2'] as Jugador[]) {
           const accion = decidir(vistaDeJugador(estado, jugador), rng)
           expect(accionesLegales(estado, jugador)).toContainEqual(accion)
           estado = aplicar(estado, accion!)
         }
       }
 
-      expect(vistaDeJugador(estado, 'A').fase).toBe('resultadoRonda')
-      expect(['A', 'B']).toContain(vistaDeJugador(estado, 'A').ganadorRonda)
+      expect(vistaDeJugador(estado, 'J1').fase).toBe('resultadoRonda')
+      expect(['J1', 'J2']).toContain(vistaDeJugador(estado, 'J1').ganadorRonda)
     }
   })
 
   it('no decide nada cuando ya eligió carta en el enfrentamiento', () => {
     const partida = crearPartida({ multiplicador: 4 }, () => 0)
-    const estado = aplicar(aplicar(partida, { tipo: 'Apostar', jugador: 'B', cantidad: 1 }), {
+    const estado = aplicar(aplicar(partida, { tipo: 'Apostar', jugador: 'J2', cantidad: 1 }), {
       tipo: 'ElegirCarta',
-      jugador: 'B',
+      jugador: 'J2',
       carta: 'Ciudadano',
     })
 
-    expect(decidir(vistaDeJugador(estado, 'B'), () => 0)).toBeNull()
+    expect(decidir(vistaDeJugador(estado, 'J2'), () => 0)).toBeNull()
   })
 })
