@@ -30,30 +30,49 @@ h2 {
 }
 
 .carta {
-  width: 96px;
-  height: 128px;
-  border: 2px solid #8a7f66;
-  border-radius: 6px;
-  background: #e6dfcf;
-  color: #1b1a17;
+  /* Escalado por múltiplos enteros del sprite de 24 × 32 para que el pixel art se vea nítido. */
+  --escala: 3;
+  position: relative;
+  flex: none;
+  width: calc(24px * var(--escala));
+  height: calc(32px * var(--escala));
+  padding: 0;
+  border: 0;
+  background: transparent no-repeat center / 100% 100%;
+  image-rendering: pixelated;
   font: inherit;
-  font-weight: bold;
-  font-size: 0.75rem;
+}
+
+/* La etiqueta en español va sobre la banda clara del sprite (filas 24–28). */
+.etiqueta {
+  position: absolute;
+  left: calc(3px * var(--escala));
+  right: calc(3px * var(--escala));
+  top: calc(24px * var(--escala));
+  height: calc(5px * var(--escala));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0e0c10;
+  font: 700 calc(2.6px * var(--escala)) / 1 ui-monospace, 'Courier New', monospace;
 }
 
 .carta.dorso {
-  width: 48px;
-  height: 64px;
-  background: #4a3b2a;
+  --escala: 2;
+}
+
+button.carta {
+  cursor: pointer;
 }
 
 .carta.seleccionada {
-  outline: 3px solid #d4a640;
-  transform: translateY(-6px);
+  outline: 3px solid #d6a84e;
+  transform: translateY(-8px);
 }
 
 .carta:disabled {
-  opacity: 0.6;
+  cursor: default;
+  filter: brightness(0.7);
 }
 
 .centro {

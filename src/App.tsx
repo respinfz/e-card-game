@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { aplicar, crearPartida, vistaDeJugador } from './motor'
 import type { Bando, Carta, Configuracion, Estado, Jugador, Motivo, Multiplicador, Rng, VistaDeJugador } from './motor'
 import { decidir } from './ia/ia'
+import { SPRITE } from './sprites'
 
 const HUMANO: Jugador = 'J1'
 const IA: Jugador = 'J2'
@@ -188,7 +189,7 @@ function Mesa({
         <p className="fichas">Fichas: {vista.fichasRival}</p>
         <div className="cartas">
           {Array.from({ length: vista.cartasRival }, (_, i) => (
-            <div key={i} className="carta dorso" aria-label="Carta boca abajo" />
+            <CartaBocaAbajo key={i} etiqueta="Carta boca abajo" />
           ))}
         </div>
         <p>
@@ -201,11 +202,9 @@ function Mesa({
         {vista.apuesta !== null && <p className="apuesta">Apuesta: {vista.apuesta} fichas</p>}
         {vista.fase === 'enfrentamientos' && (vista.rivalHaElegido || vista.miEleccion !== null) && (
           <div className="mesa-eleccion">
-            {vista.rivalHaElegido && <div className="carta dorso" aria-label="Carta del rival boca abajo" />}
+            {vista.rivalHaElegido && <CartaBocaAbajo etiqueta="Carta del rival boca abajo" />}
             {vista.miEleccion !== null && (
-              <div className="carta" aria-label="Tu carta, aún sin revelar">
-                {ETIQUETA[vista.miEleccion]}
-              </div>
+              <CartaVista carta={vista.miEleccion} etiqueta={`Tu carta, aún sin revelar: ${ETIQUETA[vista.miEleccion]}`} />
             )}
           </div>
         )}
@@ -239,7 +238,8 @@ function Mesa({
               <ol className="enfrentamientos">
                 {vista.enfrentamientos.map((e, i) => (
                   <li key={i}>
-                    Tú: <strong>{ETIQUETA[e.mia]}</strong> — Rival: <strong>{ETIQUETA[e.rival]}</strong>
+                    <CartaVista carta={e.rival} etiqueta={`Rival: ${ETIQUETA[e.rival]}`} />
+                    <CartaVista carta={e.mia} etiqueta={`Tú: ${ETIQUETA[e.mia]}`} />
                   </li>
                 ))}
               </ol>
@@ -258,11 +258,12 @@ function Mesa({
             <button
               key={i}
               className={`carta${seleccion === i ? ' seleccionada' : ''}`}
+              style={{ backgroundImage: `url(${SPRITE.carta(carta)})` }}
               disabled={!puedeElegir}
               aria-pressed={seleccion === i}
               onClick={() => setSeleccion(i)}
             >
-              {ETIQUETA[carta]}
+              <span className="etiqueta">{ETIQUETA[carta]}</span>
             </button>
           ))}
         </div>
@@ -300,6 +301,23 @@ function Reloj({ onAgotado }: { onAgotado: () => void }) {
     <p className="reloj" role="timer" aria-label="Tiempo límite">
       {Math.ceil(restante / 1000)} s
     </p>
+  )
+}
+
+/** Carta boca arriba con su sprite y la etiqueta en español superpuesta. */
+function CartaVista({ carta, etiqueta }: { carta: Carta; etiqueta: string }) {
+  return (
+    <div className="carta" style={{ backgroundImage: `url(${SPRITE.carta(carta)})` }} role="img" aria-label={etiqueta}>
+      <span className="etiqueta" aria-hidden="true">
+        {ETIQUETA[carta]}
+      </span>
+    </div>
+  )
+}
+
+function CartaBocaAbajo({ etiqueta }: { etiqueta: string }) {
+  return (
+    <div className="carta dorso" style={{ backgroundImage: `url(${SPRITE.dorso})` }} role="img" aria-label={etiqueta} />
   )
 }
 
