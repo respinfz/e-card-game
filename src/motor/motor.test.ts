@@ -529,3 +529,56 @@ describe('carta al azar', () => {
     expect(vistaDeJugador(estado, 'J1').enfrentamientos).toHaveLength(1)
   })
 })
+
+describe('historial', () => {
+  it('incluye cada ronda terminada con ganador, bandos, apuesta y el enfrentamiento decisivo', () => {
+    // Ronda 1: dos descartes y gana el jugador Esclavo (J2) en el tercer enfrentamiento.
+    let estado = nuevaRonda(3)
+    estado = enfrentar(estado, 'Ciudadano', 'Ciudadano')
+    estado = enfrentar(estado, 'Ciudadano', 'Ciudadano')
+    estado = enfrentar(estado, 'Emperador', 'Esclavo')
+    // Ronda 2: gana el jugador Emperador (J1) en el primer enfrentamiento.
+    estado = jugarRonda(continuar(estado), 'Emperador', 2)
+
+    expect(vistaDeJugador(estado, 'J1').historial).toEqual([
+      {
+        ronda: 1,
+        ganador: 'J2',
+        miBando: 'Emperador',
+        apuesta: 3,
+        pago: 12,
+        enfrentamientoDecisivo: 3,
+        cartasDecisivas: { mia: 'Emperador', rival: 'Esclavo' },
+      },
+      {
+        ronda: 2,
+        ganador: 'J1',
+        miBando: 'Emperador',
+        apuesta: 2,
+        pago: 2,
+        enfrentamientoDecisivo: 1,
+        cartasDecisivas: { mia: 'Emperador', rival: 'Ciudadano' },
+      },
+    ])
+    expect(vistaDeJugador(estado, 'J2').historial[0]).toMatchObject({
+      miBando: 'Esclavo',
+      cartasDecisivas: { mia: 'Esclavo', rival: 'Emperador' },
+    })
+  })
+
+  it('no incluye la ronda en curso', () => {
+    let estado = jugarRonda(nuevaPartida(), 'Emperador')
+    estado = continuar(estado)
+    estado = aplicar(estado, { tipo: 'Apostar', jugador: 'J2', cantidad: 4 })
+    estado = enfrentar(estado, 'Ciudadano', 'Ciudadano')
+    estado = aplicar(estado, { tipo: 'ElegirCarta', jugador: 'J2', carta: 'Esclavo' })
+
+    const historial = vistaDeJugador(estado, 'J1').historial
+    expect(historial).toHaveLength(1)
+    expect(historial[0].ronda).toBe(1)
+  })
+
+  it('la partida empieza con el historial vacío', () => {
+    expect(vistaDeJugador(nuevaPartida(), 'J1').historial).toEqual([])
+  })
+})

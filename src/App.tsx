@@ -148,9 +148,12 @@ function Mesa({
   }
 
   const puedeElegir = vista.fase === 'enfrentamientos' && vista.miEleccion === null && !enPausa
-  // En la partida normal se cambia de bando al empezar cada bloque; en el desempate, en cada ronda.
-  const empiezaBloque = vista.esDesempate || (vista.ronda - 1) % 3 === 0
-  const cambioDeBando = vista.ronda > 1 && empiezaBloque && reveladas === 0 && vista.fase !== 'resultadoRonda'
+  const rondaAnterior = vista.historial.at(-1)
+  const cambioDeBando =
+    rondaAnterior !== undefined &&
+    rondaAnterior.ronda === vista.ronda - 1 &&
+    rondaAnterior.miBando !== vista.bando &&
+    reveladas === 0
 
   return (
     <main className="mesa">
@@ -268,6 +271,8 @@ function Mesa({
           Confirmar
         </button>
       </section>
+
+      <Historial vista={vista} />
     </main>
   )
 }
@@ -295,6 +300,43 @@ function Reloj({ onAgotado }: { onAgotado: () => void }) {
     <p className="reloj" role="timer" aria-label="Tiempo límite">
       {Math.ceil(restante / 1000)} s
     </p>
+  )
+}
+
+function Historial({ vista }: { vista: VistaDeJugador }) {
+  return (
+    <section className="historial" aria-label="Historial">
+      <h2>Historial</h2>
+      {vista.historial.length === 0 ? (
+        <p>Aún no ha terminado ninguna ronda.</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Ronda</th>
+              <th scope="col">Tu bando</th>
+              <th scope="col">Apuesta</th>
+              <th scope="col">Ganador</th>
+              <th scope="col">Carta especial</th>
+            </tr>
+          </thead>
+          <tbody>
+            {vista.historial.map((ronda) => (
+              <tr key={ronda.ronda}>
+                <td>{ronda.ronda}</td>
+                <td>{ronda.miBando}</td>
+                <td>{ronda.apuesta}</td>
+                <td>{ronda.ganador === HUMANO ? 'Tú' : NOMBRE_RIVAL}</td>
+                <td>
+                  {ronda.enfrentamientoDecisivo}.º enfrentamiento: {ETIQUETA[ronda.cartasDecisivas.mia]} contra{' '}
+                  {ETIQUETA[ronda.cartasDecisivas.rival]}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
   )
 }
 

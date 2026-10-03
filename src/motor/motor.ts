@@ -7,6 +7,7 @@ import type {
   Estado,
   Jugador,
   Resultado,
+  RondaJugada,
   Rng,
   VistaDeJugador,
 } from './tipos'
@@ -107,6 +108,7 @@ export function crearPartida(configuracion: Configuracion, rng: Rng): Estado {
     ganadorRonda: null,
     pago: null,
     resultado: null,
+    historial: [],
   }
   return empezarRonda(vacio, 1)
 }
@@ -144,7 +146,16 @@ function pagar(estado: Estado, ganador: Jugador): Estado {
   else if (cierraUnTramo(estado.ronda) && fichas.J1 !== fichas.J2) {
     resultado = { ganador: fichas.J1 > fichas.J2 ? 'J1' : 'J2', motivo: 'finDeRondas' }
   }
-  return { ...estado, fichas, pago, resultado }
+  const ronda: RondaJugada = {
+    ronda: estado.ronda,
+    ganador,
+    bandos: { J1: bandoDe(estado, 'J1'), J2: bandoDe(estado, 'J2') },
+    apuesta: estado.apuesta!,
+    pago,
+    enfrentamientoDecisivo: estado.enfrentamientos.length,
+    cartasDecisivas: estado.enfrentamientos.at(-1)!,
+  }
+  return { ...estado, fichas, pago, resultado, historial: [...estado.historial, ronda] }
 }
 
 function revelar(estado: Estado, enfrentamiento: Enfrentamiento): Estado {
@@ -250,5 +261,14 @@ export function vistaDeJugador(estado: Estado, jugador: Jugador): VistaDeJugador
     ganadorRonda: estado.ganadorRonda,
     pago: estado.pago,
     resultado: estado.resultado,
+    historial: estado.historial.map((r) => ({
+      ronda: r.ronda,
+      ganador: r.ganador,
+      miBando: r.bandos[jugador],
+      apuesta: r.apuesta,
+      pago: r.pago,
+      enfrentamientoDecisivo: r.enfrentamientoDecisivo,
+      cartasDecisivas: { mia: r.cartasDecisivas[jugador], rival: r.cartasDecisivas[rival] },
+    })),
   }
 }

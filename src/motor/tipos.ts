@@ -26,6 +26,18 @@ export interface Resultado {
   motivo: Motivo
 }
 
+/** Una ronda ya terminada, tal como queda registrada en el historial. */
+export interface RondaJugada {
+  ronda: number
+  ganador: Jugador
+  bandos: Record<Jugador, Bando>
+  apuesta: number
+  pago: number
+  /** Número del enfrentamiento en que apareció la carta especial, desde 1. */
+  enfrentamientoDecisivo: number
+  cartasDecisivas: Enfrentamiento
+}
+
 export interface Estado {
   configuracion: Configuracion
   jugadorA: Jugador
@@ -44,6 +56,7 @@ export interface Estado {
   pago: number | null
   /** Ganador y motivo cuando la partida ha terminado. */
   resultado: Resultado | null
+  historial: RondaJugada[]
 }
 
 export type Accion =
@@ -55,6 +68,17 @@ export type Accion =
 export interface EnfrentamientoVisto {
   mia: Carta
   rival: Carta
+}
+
+/** Una ronda del historial vista desde un jugador. */
+export interface RondaVista {
+  ronda: number
+  ganador: Jugador
+  miBando: Bando
+  apuesta: number
+  pago: number
+  enfrentamientoDecisivo: number
+  cartasDecisivas: EnfrentamientoVisto
 }
 
 export interface VistaDeJugador {
@@ -82,4 +106,6 @@ export interface VistaDeJugador {
   ganadorRonda: Jugador | null
   pago: number | null
   resultado: Resultado | null
+  /** Las rondas terminadas, de la primera a la última. */
+  historial: RondaVista[]
 }
