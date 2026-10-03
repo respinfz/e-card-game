@@ -19,6 +19,10 @@ describe('IA aleatoria', () => {
     for (let semilla = 1; semilla <= 50; semilla++) {
       const rng = rngConSemilla(semilla)
       let estado = crearPartida({ multiplicador: 4 }, rng)
+      const apuesta = decidir(vistaDeJugador(estado, 'B'), rng)
+      expect(accionesLegales(estado, 'B')).toContainEqual(apuesta)
+      expect(decidir(vistaDeJugador(estado, 'A'), rng)).toBeNull()
+      estado = aplicar(estado, apuesta!)
 
       for (let paso = 0; paso < 10 && vistaDeJugador(estado, 'A').fase === 'enfrentamientos'; paso++) {
         for (const jugador of ['A', 'B'] as Jugador[]) {
@@ -34,7 +38,8 @@ describe('IA aleatoria', () => {
   })
 
   it('no decide nada cuando ya eligió carta en el enfrentamiento', () => {
-    const estado = aplicar(crearPartida({ multiplicador: 4 }, () => 0), {
+    const partida = crearPartida({ multiplicador: 4 }, () => 0)
+    const estado = aplicar(aplicar(partida, { tipo: 'Apostar', jugador: 'B', cantidad: 1 }), {
       tipo: 'ElegirCarta',
       jugador: 'B',
       carta: 'Ciudadano',

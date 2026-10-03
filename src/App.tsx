@@ -23,6 +23,7 @@ function eleccionDeLaIA(estado: Estado, rng: Rng): Estado {
 export function App({ rng = Math.random }: { rng?: Rng }) {
   const [estado, setEstado] = useState(() => crearPartida(CONFIGURACION, rng))
   const [seleccion, setSeleccion] = useState<number | null>(null)
+  const [cantidad, setCantidad] = useState(1)
   const vista = vistaDeJugador(estado, HUMANO)
 
   // La IA elige en cuanto empieza cada enfrentamiento, sin ver la elección del humano.
@@ -37,9 +38,14 @@ export function App({ rng = Math.random }: { rng?: Rng }) {
     setSeleccion(null)
   }
 
+  function apostar() {
+    setEstado(aplicar(estado, { tipo: 'Apostar', jugador: HUMANO, cantidad }))
+  }
+
   function otraRonda() {
     setEstado(crearPartida(CONFIGURACION, rng))
     setSeleccion(null)
+    setCantidad(1)
   }
 
   const ultimo = vista.enfrentamientos.at(-1)
@@ -48,6 +54,7 @@ export function App({ rng = Math.random }: { rng?: Rng }) {
     <main className="mesa">
       <section className="zona-rival" aria-label="Rival">
         <h2>Rival (jugador {BANDO_CONTRARIO[vista.bando]})</h2>
+        <p className="fichas">Fichas: {vista.fichasRival}</p>
         <div className="cartas">
           {Array.from({ length: vista.cartasRival }, (_, i) => (
             <div key={i} className="carta dorso" aria-label="Carta boca abajo" />
@@ -60,8 +67,30 @@ export function App({ rng = Math.random }: { rng?: Rng }) {
       </section>
 
       <section className="centro" aria-label="Enfrentamientos">
+        {vista.apuesta !== null && <p className="apuesta">Apuesta: {vista.apuesta} fichas</p>}
+        {vista.fase === 'apuesta' &&
+          (vista.apuestaMaxima === null ? (
+            <p>El rival está decidiendo la apuesta…</p>
+          ) : (
+            <div className="selector-apuesta">
+              <label>
+                Tu apuesta: <strong>{cantidad}</strong>
+                <input
+                  type="range"
+                  min={1}
+                  max={vista.apuestaMaxima}
+                  value={cantidad}
+                  onChange={(e) => setCantidad(Number(e.target.value))}
+                />
+              </label>
+              <p>
+                Si ganas: +{cantidad * CONFIGURACION.multiplicador} · Si pierdes: −{cantidad}
+              </p>
+              <button onClick={apostar}>Apostar</button>
+            </div>
+          ))}
         <h2>Enfrentamientos</h2>
-        {vista.enfrentamientos.length === 0 ? (
+        {vista.fase === 'apuesta' ? null : vista.enfrentamientos.length === 0 ? (
           <p>Elige una carta y confírmala.</p>
         ) : (
           <ol className="enfrentamientos">
@@ -77,7 +106,13 @@ export function App({ rng = Math.random }: { rng?: Rng }) {
         )}
         {vista.fase === 'resultadoRonda' && (
           <div className="resultado" role="status">
-            <p>{vista.ganadorRonda === HUMANO ? '¡Ganas la ronda!' : 'El rival gana la ronda.'}</p>
+            <p>
+              {vista.ganadorRonda === HUMANO ? '¡Ganas la ronda!' : 'El rival gana la ronda.'}{' '}
+              {vista.pago} fichas cambian de manos.
+            </p>
+            {vista.resultado && (
+              <p>{vista.resultado.ganador === HUMANO ? '¡Ganas la partida!' : 'Pierdes la partida.'}</p>
+            )}
             <button onClick={otraRonda}>Jugar otra ronda</button>
           </div>
         )}
@@ -85,6 +120,7 @@ export function App({ rng = Math.random }: { rng?: Rng }) {
 
       <section className="zona-jugador" aria-label="Tu mano">
         <h2>Tú (jugador {vista.bando})</h2>
+        <p className="fichas">Fichas: {vista.misFichas}</p>
         <div className="cartas">
           {vista.mano.map((carta, i) => (
             <button

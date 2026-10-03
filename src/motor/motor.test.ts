@@ -4,8 +4,13 @@ import type { Carta, Estado } from './index'
 
 const rngFijo = () => 0
 
-function nuevaRonda(): Estado {
+function nuevaPartida(): Estado {
   return crearPartida({ multiplicador: 4 }, rngFijo)
+}
+
+/** Partida recién creada con la apuesta mínima ya hecha por el jugador Esclavo (B). */
+function nuevaRonda(apuesta = 1): Estado {
+  return aplicar(nuevaPartida(), { tipo: 'Apostar', jugador: 'B', cantidad: apuesta })
 }
 
 function enfrentar(estado: Estado, cartaA: Carta, cartaB: Carta): Estado {
@@ -170,5 +175,109 @@ describe('vista de jugador', () => {
     expect(vistaDeJugador(estado, 'A').miEleccion).toBe('Emperador')
     expect(vistaDeJugador(estado, 'B').rivalHaElegido).toBe(true)
     expect(vistaDeJugador(estado, 'B').miEleccion).toBeNull()
+  })
+})
+
+describe('apuesta', () => {
+  it('la partida empieza en la fase de apuesta con 30 fichas para cada jugador', () => {
+    const vista = vistaDeJugador(nuevaPartida(), 'A')
+
+    expect(vista.fase).toBe('apuesta')
+    expect(vista.misFichas).toBe(30)
+    expect(vista.fichasRival).toBe(30)
+    expect(vista.apuesta).toBeNull()
+  })
+
+  it('no se puede elegir carta antes de que exista la apuesta', () => {
+    const estado = nuevaPartida()
+
+    expect(aplicar(estado, { tipo: 'ElegirCarta', jugador: 'A', carta: 'Emperador' })).toBe(estado)
+    expect(accionesLegales(estado, 'A')).toEqual([])
+  })
+
+  it('al apostar el jugador Esclavo empiezan los enfrentamientos y ambos ven la apuesta', () => {
+    const estado = aplicar(nuevaPartida(), { tipo: 'Apostar', jugador: 'B', cantidad: 7 })
+
+    expect(vistaDeJugador(estado, 'A').fase).toBe('enfrentamientos')
+    expect(vistaDeJugador(estado, 'A').apuesta).toBe(7)
+    expect(vistaDeJugador(estado, 'B').apuesta).toBe(7)
+  })
+})
+
+describe('límites de apuesta', () => {
+  it('rechaza apuestas fuera de 1–10 y que apueste el jugador Emperador', () => {
+    const estado = nuevaPartida()
+
+    for (const cantidad of [0, -1, 11, 2.5]) {
+      expect(aplicar(estado, { tipo: 'Apostar', jugador: 'B', cantidad })).toBe(estado)
+    }
+    expect(aplicar(estado, { tipo: 'Apostar', jugador: 'A', cantidad: 5 })).toBe(estado)
+  })
+
+  it('rechaza una segunda apuesta cuando ya empezaron los enfrentamientos', () => {
+    const estado = nuevaRonda(3)
+
+    expect(aplicar(estado, { tipo: 'Apostar', jugador: 'B', cantidad: 5 })).toBe(estado)
+  })
+})
+
+describe('pago', () => {
+  it('si gana el jugador Emperador, el jugador Esclavo le paga la apuesta ×1', () => {
+    const estado = enfrentar(nuevaRonda(6), 'Ciudadano', 'Esclavo')
+
+    expect(vistaDeJugador(estado, 'A').misFichas).toBe(36)
+    expect(vistaDeJugador(estado, 'B').misFichas).toBe(24)
+    expect(vistaDeJugador(estado, 'A').pago).toBe(6)
+  })
+
+  it('si gana el jugador Esclavo, el jugador Emperador le paga la apuesta × el multiplicador', () => {
+    const estado = enfrentar(nuevaRonda(3), 'Emperador', 'Esclavo')
+
+    expect(vistaDeJugador(estado, 'A').misFichas).toBe(18)
+    expect(vistaDeJugador(estado, 'B').misFichas).toBe(42)
+    expect(vistaDeJugador(estado, 'B').pago).toBe(12)
+  })
+
+  it('con multiplicador ×5 el jugador Emperador paga la apuesta ×5', () => {
+    const partida = crearPartida({ multiplicador: 5 }, rngFijo)
+    const estado = enfrentar(aplicar(partida, { tipo: 'Apostar', jugador: 'B', cantidad: 4 }), 'Emperador', 'Esclavo')
+
+    expect(vistaDeJugador(estado, 'B').misFichas).toBe(50)
+    expect(vistaDeJugador(estado, 'A').misFichas).toBe(10)
+  })
+
+  it('los descartes de Ciudadanos no mueven fichas', () => {
+    const estado = enfrentar(nuevaRonda(6), 'Ciudadano', 'Ciudadano')
+
+    expect(vistaDeJugador(estado, 'A').misFichas).toBe(30)
+    expect(vistaDeJugador(estado, 'A').pago).toBeNull()
+  })
+})
+
+describe('derrota por fichas', () => {
+  it('si el perdedor no puede cubrir el pago entrega todas sus fichas y pierde la partida', () => {
+    // 10 × 4 = 40 fichas, pero el jugador Emperador solo tiene 30.
+    const estado = enfrentar(nuevaRonda(10), 'Emperador', 'Esclavo')
+
+    const vista = vistaDeJugador(estado, 'A')
+    expect(vista.misFichas).toBe(0)
+    expect(vista.fichasRival).toBe(60)
+    expect(vista.pago).toBe(30)
+    expect(vista.resultado).toEqual({ ganador: 'B', motivo: 'pagoNoCubierto' })
+  })
+
+  it('quedarse con exactamente 0 fichas tras un pago es derrota inmediata', () => {
+    // 6 × 5 = 30 fichas: el jugador Emperador paga justo todo lo que tiene.
+    const partida = crearPartida({ multiplicador: 5 }, rngFijo)
+    const estado = enfrentar(aplicar(partida, { tipo: 'Apostar', jugador: 'B', cantidad: 6 }), 'Emperador', 'Esclavo')
+
+    expect(vistaDeJugador(estado, 'A').misFichas).toBe(0)
+    expect(vistaDeJugador(estado, 'B').resultado).toEqual({ ganador: 'B', motivo: 'sinFichas' })
+  })
+
+  it('mientras nadie se quede sin fichas la partida no tiene resultado', () => {
+    const estado = enfrentar(nuevaRonda(5), 'Emperador', 'Esclavo')
+
+    expect(vistaDeJugador(estado, 'A').resultado).toBeNull()
   })
 })
