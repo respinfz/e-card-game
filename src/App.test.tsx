@@ -69,20 +69,37 @@ describe('flujo de la aplicación', () => {
   })
 })
 
+/**
+ * Con el rng en 0.99 el rival gana el sorteo: el humano empieza de jugador Esclavo
+ * y apuesta, y el rival juega Ciudadano mientras le quede alguno.
+ */
+function empezarComoEsclavo() {
+  render(<App rng={() => 0.99} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Empezar partida' }))
+}
+
+function apostarUna() {
+  fireEvent.click(screen.getByRole('button', { name: 'Apostar' }))
+}
+
+describe('rival IA', () => {
+  it('piensa entre 1 y 4 s y su carta aparece boca abajo en la mesa en cuanto elige', () => {
+    empezarComoEsclavo()
+    apostarUna()
+
+    // Con el rng en 0.99 tarda 1 + 0.99 × 3 = 3,97 s.
+    avanzar(3_900)
+    expect(screen.queryByLabelText('Carta del rival boca abajo')).toBeNull()
+    expect(screen.getByText(/Pensando/)).toBeTruthy()
+
+    avanzar(100)
+    expect(screen.getByLabelText('Carta del rival boca abajo')).toBeTruthy()
+    // El reloj del humano sigue corriendo mientras tanto.
+    expect(screen.getByRole('timer').textContent).toMatch(/16/)
+  })
+})
+
 describe('tiempo límite', () => {
-  /**
-   * Con el rng en 0.99 el rival gana el sorteo: el humano empieza de jugador Esclavo
-   * y apuesta, y el rival juega Ciudadano mientras le quede alguno.
-   */
-  function empezarComoEsclavo() {
-    render(<App rng={() => 0.99} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Empezar partida' }))
-  }
-
-  function apostarUna() {
-    fireEvent.click(screen.getByRole('button', { name: 'Apostar' }))
-  }
-
   function reloj(): string | null {
     return screen.queryByRole('timer')?.textContent ?? null
   }

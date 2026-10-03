@@ -5,6 +5,8 @@ import { decidir } from './ia/ia'
 
 const HUMANO: Jugador = 'J1'
 const IA: Jugador = 'J2'
+/** Nombre genérico del rival: ningún personaje del manga. */
+const NOMBRE_RIVAL = 'El Prestamista'
 
 /** Cuánto se ven dos Ciudadanos revelados antes de pasar al siguiente enfrentamiento. */
 export const PAUSA_EMPATE_MS = 1500
@@ -12,6 +14,10 @@ export const PAUSA_EMPATE_MS = 1500
 /** Tiempo límite para elegir carta en cada enfrentamiento. */
 const TIEMPO_LIMITE_MS = 20_000
 const TIC_MS = 100
+
+/** La IA "piensa" entre 1 y 4 s antes de actuar, para parecer un rival que duda. */
+const IA_PIENSA_MIN_MS = 1000
+const IA_PIENSA_MAX_MS = 4000
 
 const BANDO_CONTRARIO: Record<Bando, Bando> = { Emperador: 'Esclavo', Esclavo: 'Emperador' }
 
@@ -27,9 +33,15 @@ const MOTIVO: Record<Motivo, string> = {
   pagoNoCubierto: 'Un jugador no pudo cubrir el pago',
 }
 
-function eleccionDeLaIA(estado: Estado, rng: Rng): Estado {
+function accionDeLaIA(estado: Estado, rng: Rng): Estado {
   const accion = decidir(vistaDeJugador(estado, IA), rng)
   return accion ? aplicar(estado, accion) : estado
+}
+
+/** Identifica el momento en que la IA tiene que actuar, o null si no le toca. */
+function turnoDeLaIA(vista: VistaDeJugador): string | null {
+  const leToca = vista.apuestaMaxima !== null || (vista.fase === 'enfrentamientos' && vista.miEleccion === null)
+  return leToca ? `${vista.ronda}-${vista.fase}-${vista.enfrentamientos.length}` : null
 }
 
 export function App({ rng = Math.random }: { rng?: Rng }) {
@@ -105,12 +117,14 @@ function Mesa({
     return () => clearTimeout(temporizador)
   }, [enPausa, reveladas])
 
-  // La IA actúa en cuanto le toca, sin ver la elección del humano.
-  // Si no le toca, eleccionDeLaIA devuelve el mismo estado y React no vuelve a renderizar.
+  // Cuando le toca, la IA piensa un rato y actúa, sin ver la elección del humano.
+  const turnoIA = turnoDeLaIA(vistaDeJugador(estado, IA))
   useEffect(() => {
-    if (enPausa) return
-    setEstado((actual) => eleccionDeLaIA(actual, rng))
-  }, [estado, rng, enPausa, setEstado])
+    if (enPausa || turnoIA === null) return
+    const espera = IA_PIENSA_MIN_MS + rng() * (IA_PIENSA_MAX_MS - IA_PIENSA_MIN_MS)
+    const temporizador = setTimeout(() => setEstado((actual) => accionDeLaIA(actual, rng)), espera)
+    return () => clearTimeout(temporizador)
+  }, [turnoIA, enPausa, rng, setEstado])
 
   function confirmar() {
     if (seleccion === null) return
@@ -165,7 +179,9 @@ function Mesa({
       </header>
 
       <section className="zona-rival" aria-label="Rival">
-        <h2>Rival (jugador {BANDO_CONTRARIO[vista.bando]})</h2>
+        <h2>
+          {NOMBRE_RIVAL} (jugador {BANDO_CONTRARIO[vista.bando]})
+        </h2>
         <p className="fichas">Fichas: {vista.fichasRival}</p>
         <div className="cartas">
           {Array.from({ length: vista.cartasRival }, (_, i) => (
@@ -180,9 +196,19 @@ function Mesa({
 
       <section className="centro" aria-label="Enfrentamientos">
         {vista.apuesta !== null && <p className="apuesta">Apuesta: {vista.apuesta} fichas</p>}
+        {vista.fase === 'enfrentamientos' && (vista.rivalHaElegido || vista.miEleccion !== null) && (
+          <div className="mesa-eleccion">
+            {vista.rivalHaElegido && <div className="carta dorso" aria-label="Carta del rival boca abajo" />}
+            {vista.miEleccion !== null && (
+              <div className="carta" aria-label="Tu carta, aún sin revelar">
+                {ETIQUETA[vista.miEleccion]}
+              </div>
+            )}
+          </div>
+        )}
         {vista.fase === 'apuesta' &&
           (vista.apuestaMaxima === null ? (
-            <p>El rival está decidiendo la apuesta…</p>
+            <p>{NOMBRE_RIVAL} está decidiendo la apuesta…</p>
           ) : (
             <div className="selector-apuesta">
               <label>
