@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { aplicar, crearPartida, vistaDeJugador } from './motor'
 import type { Bando, Carta, Configuracion, Estado, Jugador, Motivo, Multiplicador, Rng, VistaDeJugador } from './motor'
 import { decidir } from './ia/ia'
@@ -158,102 +159,119 @@ function Mesa({
 
   return (
     <main className="mesa">
-      <header className="marcador" aria-label="Marcador">
-        {vista.ronda === 1 && (
-          <p className="sorteo">
-            Sorteo: {vista.jugadorA === HUMANO ? 'eres el jugador A y empiezas' : 'el rival es el jugador A y empieza'} de
-            Emperador.
+      <section className="panel panel-rival" aria-label="Rival">
+        <img className="retrato" src={SPRITE.retratoRival} alt="Retrato del rival" />
+        <div className="datos">
+          <h2>{NOMBRE_RIVAL}</h2>
+          <p>Jugador {BANDO_CONTRARIO[vista.bando]}</p>
+          <p className="fichas">
+            Fichas: <strong>{vista.fichasRival}</strong>
           </p>
-        )}
-        <p className="multiplicador">Multiplicador ×{vista.multiplicador}</p>
-        {vista.esDesempate && (
-          <p className="desempate">
-            <strong>Desempate</strong> · apuesta fija de 5 fichas
+          <p className="estado-rival">
+            {vista.cartasRival} cartas
+            {vista.fase === 'enfrentamientos' && (vista.rivalHaElegido ? ' · Ya eligió' : ' · Pensando…')}
           </p>
-        )}
-        <p>
-          {vista.esDesempate ? `Ronda ${vista.ronda}` : `Ronda ${vista.ronda} de 12`} · Bloque {vista.bloque} · Eres
-          el jugador <strong>{vista.bando}</strong>
-        </p>
-        {cambioDeBando && (
-          <p className="aviso" role="alert">
-            ¡Cambio de bando! Ahora eres el jugador {vista.bando}.
-          </p>
-        )}
-      </header>
+        </div>
+      </section>
 
-      <section className="zona-rival" aria-label="Rival">
-        <h2>
-          {NOMBRE_RIVAL} (jugador {BANDO_CONTRARIO[vista.bando]})
-        </h2>
-        <p className="fichas">Fichas: {vista.fichasRival}</p>
-        <div className="cartas">
+      <section className="panel panel-jugador" aria-label="Tú">
+        <img className="retrato" src={SPRITE.retratoJugador} alt="Tu retrato" />
+        <div className="datos">
+          <h2>Tú</h2>
+          <p>
+            Jugador <strong>{vista.bando}</strong>
+          </p>
+          <p className="fichas">
+            Fichas: <strong>{vista.misFichas}</strong>
+          </p>
+          {vista.apuesta !== null && (
+            <p className="apuesta">
+              Apuesta: <strong>{vista.apuesta}</strong>
+            </p>
+          )}
+        </div>
+      </section>
+
+      <section className="tablero" aria-label="Mesa" style={{ backgroundImage: `url(${SPRITE.mesa})` }}>
+        <header className="marcador" aria-label="Marcador">
+          <p className="ronda">
+            {vista.esDesempate ? `Desempate · Ronda ${vista.ronda}` : `Ronda ${vista.ronda} de 12`} · Bloque{' '}
+            {vista.bloque} · Multiplicador ×{vista.multiplicador}
+          </p>
+          {vista.ronda === 1 && (
+            <p className="sorteo">
+              Sorteo: {vista.jugadorA === HUMANO ? 'eres el jugador A y empiezas' : 'el rival es el jugador A y empieza'}{' '}
+              de Emperador.
+            </p>
+          )}
+          {vista.esDesempate && <p className="desempate">Desempate: apuesta fija de 5 fichas.</p>}
+          {cambioDeBando && (
+            <p className="aviso" role="alert">
+              ¡Cambio de bando! Ahora eres el jugador {vista.bando}.
+            </p>
+          )}
+        </header>
+
+        <div className="fila-cartas fila-rival" aria-label="Cartas del rival">
           {Array.from({ length: vista.cartasRival }, (_, i) => (
             <CartaBocaAbajo key={i} etiqueta="Carta boca abajo" />
           ))}
         </div>
-        <p>
-          Le quedan {vista.cartasRival} cartas
-          {vista.fase === 'enfrentamientos' && (vista.rivalHaElegido ? ' · Ya eligió carta' : ' · Pensando…')}
-        </p>
-      </section>
 
-      <section className="centro" aria-label="Enfrentamientos">
-        {vista.apuesta !== null && <p className="apuesta">Apuesta: {vista.apuesta} fichas</p>}
-        {vista.fase === 'enfrentamientos' && (vista.rivalHaElegido || vista.miEleccion !== null) && (
-          <div className="mesa-eleccion">
-            {vista.rivalHaElegido && <CartaBocaAbajo etiqueta="Carta del rival boca abajo" />}
-            {vista.miEleccion !== null && (
-              <CartaVista carta={vista.miEleccion} etiqueta={`Tu carta, aún sin revelar: ${ETIQUETA[vista.miEleccion]}`} />
-            )}
-          </div>
-        )}
-        {vista.fase === 'apuesta' &&
-          (vista.apuestaMaxima === null ? (
-            <p>{NOMBRE_RIVAL} está decidiendo la apuesta…</p>
-          ) : (
-            <div className="selector-apuesta">
-              <label>
-                Tu apuesta: <strong>{cantidad}</strong>
-                <input
-                  type="range"
-                  min={1}
-                  max={vista.apuestaMaxima}
-                  value={cantidad}
-                  onChange={(e) => setCantidad(Number(e.target.value))}
-                />
-              </label>
-              <p>
-                Si ganas: +{cantidad * vista.multiplicador} · Si pierdes: −{cantidad}
-              </p>
-              <button onClick={apostar}>Apostar</button>
-            </div>
-          ))}
-        {vista.fase !== 'apuesta' && (
-          <>
-            <h2>Enfrentamientos</h2>
-            {vista.enfrentamientos.length === 0 ? (
-              <p>Elige una carta y confírmala.</p>
+        <div className="centro" aria-label="Enfrentamientos">
+          {vista.fase === 'apuesta' &&
+            (vista.apuestaMaxima === null ? (
+              <p className="mensaje">{NOMBRE_RIVAL} está decidiendo la apuesta…</p>
             ) : (
-              <ol className="enfrentamientos">
-                {vista.enfrentamientos.map((e, i) => (
-                  <li key={i}>
-                    <CartaVista carta={e.rival} etiqueta={`Rival: ${ETIQUETA[e.rival]}`} />
-                    <CartaVista carta={e.mia} etiqueta={`Tú: ${ETIQUETA[e.mia]}`} />
-                  </li>
-                ))}
-              </ol>
-            )}
-          </>
-        )}
-        {enPausa && <p>Dos Ciudadanos: se descartan. Otro enfrentamiento.</p>}
-        {vista.fase === 'resultadoRonda' && <ResumenRonda vista={vista} onContinuar={continuarRonda} />}
-      </section>
+              <div className="selector-apuesta">
+                <label>
+                  Tu apuesta: <strong>{cantidad}</strong>
+                  <input
+                    type="range"
+                    min={1}
+                    max={vista.apuestaMaxima}
+                    value={cantidad}
+                    onChange={(e) => setCantidad(Number(e.target.value))}
+                  />
+                </label>
+                <p>
+                  Si ganas: <strong>+{cantidad * vista.multiplicador}</strong> · Si pierdes: <strong>−{cantidad}</strong>
+                </p>
+                <button onClick={apostar}>Apostar</button>
+              </div>
+            ))}
+          {vista.enfrentamientos.length > 0 && (
+            <ol className="enfrentamientos" aria-label="Enfrentamientos revelados">
+              {vista.enfrentamientos.map((e, i) => (
+                <li key={i}>
+                  <CartaVista carta={e.rival} etiqueta={`Rival: ${ETIQUETA[e.rival]}`} />
+                  <CartaVista carta={e.mia} etiqueta={`Tú: ${ETIQUETA[e.mia]}`} />
+                </li>
+              ))}
+            </ol>
+          )}
+          {vista.fase === 'enfrentamientos' && (
+            <div className="eleccion-en-curso">
+              {vista.rivalHaElegido ? (
+                <CartaBocaAbajo etiqueta="Carta del rival boca abajo" />
+              ) : (
+                <div className="hueco" aria-hidden="true" />
+              )}
+              {vista.miEleccion !== null ? (
+                <CartaVista carta={vista.miEleccion} etiqueta={`Tu carta, aún sin revelar: ${ETIQUETA[vista.miEleccion]}`} />
+              ) : (
+                <div className="hueco" aria-hidden="true" />
+              )}
+            </div>
+          )}
+          {enPausa && <p className="mensaje">Dos Ciudadanos: se descartan. Otro enfrentamiento.</p>}
+          {vista.fase === 'enfrentamientos' && !enPausa && vista.miEleccion === null && (
+            <p className="mensaje">Elige una carta y confírmala.</p>
+          )}
+          {vista.fase === 'resultadoRonda' && <ResumenRonda vista={vista} onContinuar={continuarRonda} />}
+        </div>
 
-      <section className="zona-jugador" aria-label="Tu mano">
-        <h2>Tú (jugador {vista.bando})</h2>
-        <p className="fichas">Fichas: {vista.misFichas}</p>
-        <div className="cartas">
+        <div className="fila-cartas fila-jugador" aria-label="Tu mano">
           {vista.mano.map((carta, i) => (
             <button
               key={i}
@@ -267,7 +285,16 @@ function Mesa({
             </button>
           ))}
         </div>
-        {puedeElegir && <Reloj key={reveladas} onAgotado={jugarCartaAlAzar} />}
+      </section>
+
+      <section className="controles" aria-label="Controles">
+        {puedeElegir ? (
+          <Reloj key={reveladas} onAgotado={jugarCartaAlAzar} />
+        ) : (
+          <div className="reloj apagado" aria-hidden="true">
+            <span>—</span>
+          </div>
+        )}
         <button className="confirmar" disabled={seleccion === null || !puedeElegir} onClick={confirmar}>
           Confirmar
         </button>
@@ -297,10 +324,16 @@ function Reloj({ onAgotado }: { onAgotado: () => void }) {
     if (restante === 0) onAgotado()
   }, [restante, onAgotado])
 
+  const fraccion = restante / TIEMPO_LIMITE_MS
   return (
-    <p className="reloj" role="timer" aria-label="Tiempo límite">
-      {Math.ceil(restante / 1000)} s
-    </p>
+    <div
+      className={`reloj${restante <= 5000 ? ' urgente' : ''}`}
+      style={{ '--fraccion': fraccion } as CSSProperties}
+      role="timer"
+      aria-label="Tiempo límite"
+    >
+      <span>{Math.ceil(restante / 1000)} s</span>
+    </div>
   )
 }
 
@@ -381,8 +414,8 @@ function PantallaFinal({ vista, onJugarDeNuevo }: { vista: VistaDeJugador; onJug
     <main className="pantalla-final">
       <h1>{resultado.ganador === HUMANO ? '¡Has ganado la partida!' : 'Has perdido la partida'}</h1>
       <p>{MOTIVO[resultado.motivo]}.</p>
-      <p>
-        Tus fichas: {vista.misFichas} · Fichas del rival: {vista.fichasRival}
+      <p className="fichas-finales">
+        Tus fichas: <strong>{vista.misFichas}</strong> · Fichas de {NOMBRE_RIVAL}: <strong>{vista.fichasRival}</strong>
       </p>
       <button onClick={onJugarDeNuevo}>Jugar de nuevo</button>
     </main>

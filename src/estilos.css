@@ -1,33 +1,276 @@
 :root {
   color-scheme: dark;
-  font-family: system-ui, sans-serif;
-  background: #1b1a17;
-  color: #e6dfcf;
+  --negro: #0e0c10;
+  --marco: #2a2230;
+  --crema: #e6d8b8;
+  --oro: #d6a84e;
+  --ocre: #b07a44;
+  --rojo: #a2473f;
+  --rojo-oscuro: #6a2a2c;
+  --verde: #8c9b5a;
+  --verde-oscuro: #4e5a34;
+  --morado: #5b4a78;
+  --lavanda: #9486b0;
+  --azul: #4a6898;
+  --azul-oscuro: #2e3f66;
+
+  font-family: 'VT323', ui-monospace, 'Courier New', monospace;
+  font-size: 20px;
+  line-height: 1.2;
+  background: var(--negro);
+  color: var(--crema);
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  background: var(--negro);
 }
 
-.mesa {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 2.4rem;
+  color: var(--oro);
+  letter-spacing: 0.08em;
 }
 
 h2 {
-  font-size: 1rem;
-  margin: 0 0 8px;
+  font-size: 1.2rem;
+  color: var(--oro);
 }
 
-.cartas {
+strong {
+  color: var(--oro);
+  font-weight: normal;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+button:not(.carta) {
+  padding: 6px 18px;
+  border: 3px solid var(--azul-oscuro);
+  background: var(--azul);
+  color: var(--crema);
+  box-shadow: inset -3px -3px 0 var(--azul-oscuro);
+  font-size: 1.2rem;
+  text-transform: uppercase;
+}
+
+button:not(.carta):disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+button:focus-visible {
+  outline: 3px solid var(--oro);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   Mesa: disposición del mockup en escritorio */
+
+.mesa {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 260px;
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    'rival   tablero controles'
+    'jugador tablero historial'
+    '.       tablero historial';
+  gap: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px;
+  min-height: 100vh;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 3px solid var(--marco);
+  text-align: center;
+}
+
+.panel-rival {
+  grid-area: rival;
+  border-color: var(--rojo-oscuro);
+}
+
+.panel-jugador {
+  grid-area: jugador;
+  border-color: var(--verde-oscuro);
+}
+
+.retrato {
+  /* 32 × 32 escalado ×5 */
+  width: 160px;
+  height: 160px;
+  image-rendering: pixelated;
+}
+
+.datos {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fichas {
+  font-size: 1.3rem;
+}
+
+.tablero {
+  grid-area: tablero;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 6px solid var(--ocre);
+  outline: 3px solid var(--negro);
+  outline-offset: -9px;
+  box-shadow: 0 0 0 3px var(--marco);
+  /* La textura (sprite de la mesa) se pone desde el código; se repite a ×3. */
+  background-color: var(--morado);
+  background-repeat: repeat;
+  background-size: 96px 96px;
+  image-rendering: pixelated;
+  min-width: 0;
+}
+
+.marcador {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 10px;
+  background: rgb(14 12 16 / 0.85);
+  text-align: center;
+}
+
+.ronda {
+  color: var(--verde);
+  font-size: 1.3rem;
+}
+
+.aviso {
+  color: var(--negro);
+  background: var(--oro);
+  padding: 2px 8px;
+}
+
+.desempate {
+  color: var(--rojo);
+}
+
+.fila-cartas {
+  display: flex;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  min-height: calc(32px * 3);
+}
+
+.fila-rival {
+  min-height: calc(32px * 2);
+}
+
+.fila-jugador {
+  padding-top: 10px;
+}
+
+.centro {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 220px;
+  padding: 12px;
+  background: rgb(14 12 16 / 0.6);
+  text-align: center;
+}
+
+.mensaje {
+  background: rgb(14 12 16 / 0.8);
+  padding: 2px 8px;
+}
+
+.enfrentamientos {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  justify-content: center;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
+
+.enfrentamientos li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.enfrentamientos .carta {
+  --escala: 2;
+}
+
+.eleccion-en-curso {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.eleccion-en-curso .carta,
+.hueco {
+  --escala: 2;
+}
+
+.hueco {
+  width: calc(24px * var(--escala));
+  height: calc(32px * var(--escala));
+  border: 2px dashed rgb(230 216 184 / 0.25);
+}
+
+.selector-apuesta,
+.resultado {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--negro);
+  border: 3px solid var(--ocre);
+}
+
+.selector-apuesta label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 1.3rem;
+}
+
+.selector-apuesta input {
+  width: min(260px, 70vw);
+  accent-color: var(--oro);
+}
+
+/* --------------------------------------------------------------------------
+   Cartas */
 
 .carta {
   /* Escalado por múltiplos enteros del sprite de 24 × 32 para que el pixel art se vea nítido. */
@@ -41,6 +284,7 @@ h2 {
   background: transparent no-repeat center / 100% 100%;
   image-rendering: pixelated;
   font: inherit;
+  transition: transform 0.1s;
 }
 
 /* La etiqueta en español va sobre la banda clara del sprite (filas 24–28). */
@@ -53,39 +297,230 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #0e0c10;
-  font: 700 calc(2.6px * var(--escala)) / 1 ui-monospace, 'Courier New', monospace;
+  overflow: hidden;
+  color: var(--negro);
+  font: 700 max(7px, calc(2.6px * var(--escala))) / 1 ui-monospace, 'Courier New', monospace;
+  letter-spacing: -0.04em;
 }
 
 .carta.dorso {
   --escala: 2;
 }
 
-button.carta {
-  cursor: pointer;
-}
-
 .carta.seleccionada {
-  outline: 3px solid #d6a84e;
-  transform: translateY(-8px);
+  outline: 3px solid var(--oro);
+  transform: translateY(-10px);
 }
 
 .carta:disabled {
   cursor: default;
-  filter: brightness(0.7);
+  filter: brightness(0.75);
 }
 
-.centro {
-  border: 2px solid #3d5a3d;
-  background: #23331f;
-  border-radius: 8px;
-  padding: 16px;
-  min-height: 120px;
+/* --------------------------------------------------------------------------
+   Controles: reloj y Confirmar */
+
+.controles {
+  grid-area: controles;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
 
-.confirmar,
-.resultado button {
-  margin-top: 12px;
-  padding: 8px 16px;
-  font: inherit;
+.reloj {
+  --fraccion: 1;
+  display: grid;
+  place-items: center;
+  width: 120px;
+  height: 120px;
+  border: 6px solid var(--ocre);
+  border-radius: 50%;
+  outline: 3px solid var(--negro);
+  background: conic-gradient(var(--lavanda) calc(var(--fraccion) * 360deg), var(--marco) 0);
+  font-size: 1.8rem;
+}
+
+.reloj span {
+  padding: 0 6px;
+  background: var(--negro);
+}
+
+.reloj.urgente {
+  border-color: var(--rojo);
+}
+
+.reloj.apagado {
+  background: var(--marco);
+  color: var(--lavanda);
+}
+
+.confirmar {
+  width: 100%;
+  max-width: 220px;
+  padding: 14px 18px;
+  font-size: 1.8rem;
+}
+
+/* --------------------------------------------------------------------------
+   Historial */
+
+.historial {
+  grid-area: historial;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 3px solid var(--marco);
+  font-size: 0.9rem;
+  overflow-x: auto;
+}
+
+.historial table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.historial th,
+.historial td {
+  padding: 2px 4px;
+  border-bottom: 1px solid var(--marco);
+  text-align: left;
+  vertical-align: top;
+}
+
+.historial th {
+  color: var(--lavanda);
+  font-weight: normal;
+}
+
+/* --------------------------------------------------------------------------
+   Pantallas de configuración y final */
+
+.pantalla-configuracion,
+.pantalla-final {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  max-width: 560px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 48px 16px;
+  text-align: center;
+}
+
+.pantalla-configuracion fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  border: 3px solid var(--ocre);
+}
+
+.pantalla-configuracion legend {
+  padding: 0 6px;
+  color: var(--lavanda);
+}
+
+.pantalla-configuracion label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+.pantalla-configuracion input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--oro);
+}
+
+.pantalla-final .fichas-finales {
+  font-size: 1.4rem;
+}
+
+/* --------------------------------------------------------------------------
+   Móvil en vertical: los paneles laterales pasan arriba y abajo de la mesa */
+
+@media (max-width: 860px) {
+  :root {
+    font-size: 18px;
+  }
+
+  .mesa {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas:
+      'rival'
+      'tablero'
+      'controles'
+      'jugador'
+      'historial';
+    gap: 10px;
+    padding: 8px 16px;
+  }
+
+  .panel {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 6px 10px;
+    text-align: left;
+  }
+
+  .retrato {
+    /* 32 × 32 escalado ×2 */
+    width: 64px;
+    height: 64px;
+  }
+
+  .tablero {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .centro {
+    min-height: 160px;
+    padding: 8px;
+  }
+
+  .fila-jugador .carta + .carta {
+    margin-left: -12px;
+  }
+
+  .fila-jugador {
+    gap: 0;
+  }
+
+  .fila-rival .carta.dorso {
+    --escala: 1;
+  }
+
+  .fila-rival {
+    min-height: 32px;
+  }
+
+  .enfrentamientos {
+    gap: 6px;
+  }
+
+  .controles {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .reloj {
+    width: 76px;
+    height: 76px;
+    border-width: 4px;
+    font-size: 1.3rem;
+  }
+
+  .confirmar {
+    max-width: none;
+    flex: 1;
+  }
 }
